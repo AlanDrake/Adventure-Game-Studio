@@ -560,7 +560,7 @@ struct GameState {
   int   want_speech;
   int   cant_skip_speech;
   int   script_timers[MAX_TIMERS];
-  int   sound_volume,speech_volume;
+  int   sound_volume,speech_volume,sound_panning; // EDITED
   int   normal_font, speech_font;
   char  key_skip_wait;
   int   swap_portrait_lastchar;

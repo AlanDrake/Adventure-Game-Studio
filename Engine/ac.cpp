@@ -3725,9 +3725,9 @@ void SetAreaLightLevel(int area, int brightness) {
     quit("!SetAreaLightLevel: invalid region");
   if (brightness < -100) brightness = -100;
   if (brightness > 100) brightness = 100;
-  thisroom.regionLightLevel[area] = brightness;
+  thisroom.regionLightLevel[area] = brightness*128/100; // TODO: 100 or 128 levels ?
   // disable RGB tint for this area
-  thisroom.regionTintLevel[area] &= ~TINT_IS_ENABLED;
+  thisroom.regionTintLevel[area] = 0;//&= ~TINT_IS_ENABLED;
   generate_light_table();
   DEBUG_CONSOLE("Region %d light level set to %d", area, brightness);
 }
@@ -3740,41 +3740,56 @@ int Region_GetLightLevel(ScriptRegion *ssr) {
   return thisroom.regionLightLevel[ssr->id];
 }
 
-void SetRegionTint (int area, int red, int green, int blue, int amount) {
+void SetRegionTint (int area, int red, int green, int blue, int amount, int luminance) {
   if ((area < 0) || (area > MAX_REGIONS))
     quit("!SetRegionTint: invalid region");
 
   if ((red < 0) || (red > 255) || (green < 0) || (green > 255) ||
-      (blue < 0) || (blue > 255)) {
+      (blue < 0) || (blue > 255) || (luminance < 0) || (luminance > 100))  {
     quit("!SetRegionTint: RGB values must be 0-255");
   }
 
   // originally the value was passed as 0
   if (amount == 0)
-    amount = 100;
+  {
+   // amount = 100;
+	// amount 0 in the other places deactivates the tint, let's do the same
+	  thisroom.regionTintLevel[area] = 0;
+	  thisroom.regionLightLevel[area] = 0;
+	  return;
+  }
 
-  if ((amount < 1) || (amount > 100))
-    quit("!SetRegionTint: amount must be 1-100");
 
-  DEBUG_CONSOLE("Region %d tint set to %d,%d,%d", area, red, green, blue);
+  if ((amount < 0) || (amount > 100))
+    quit("!SetRegionTint: amount must be 0-100");
+
+  DEBUG_CONSOLE("Region %d tint set to %d,%d,%d %d %d", area, red, green, blue, amount, luminance);
 
   /*red -= 100;
   green -= 100;
   blue -= 100;*/
+// 						WHATITDOES	WHATITSHOULDDO
+// 0 0 0, 0		100 	NOTHING		NOTHING
+// x x x, 0		x		FULLSAT		NOTHING
+// 0 0 0, 100 	100 	NO INVERT	SATURED GRAY
+// 0 0 0, 100	0		NO NORMAL	BLACK
+// x x x  x		x		NORMAL		NORMAL
 
   unsigned char rred = red;
   unsigned char rgreen = green;
   unsigned char rblue = blue;
+  unsigned char rluminance = luminance*25/10;
 
-  thisroom.regionTintLevel[area] = TINT_IS_ENABLED;
-  thisroom.regionTintLevel[area] |= rred & 0x000000ff;
+  //thisroom.regionTintLevel[area] = TINT_IS_ENABLED; // NO THANKS
+  thisroom.regionTintLevel[area] = rred & 0x000000ff;
   thisroom.regionTintLevel[area] |= (int(rgreen) << 8) & 0x0000ff00;
   thisroom.regionTintLevel[area] |= (int(rblue) << 16) & 0x00ff0000;
-  thisroom.regionLightLevel[area] = amount;
+  thisroom.regionTintLevel[area] |= (int(amount) << 24) & 0xff000000; // Let's do what had to be done to begin with
+  thisroom.regionLightLevel[area] = rluminance;	// and put luminance where it belongs
 }
 
 int Region_GetTintEnabled(ScriptRegion *srr) {
-  if (thisroom.regionTintLevel[srr->id] & TINT_IS_ENABLED)
+  if ( (thisroom.regionTintLevel[srr->id] & 0xFF000000) != 0 )
     return 1;
   return 0;
 }
@@ -3796,11 +3811,11 @@ int Region_GetTintBlue(ScriptRegion *srr) {
 
 int Region_GetTintSaturation(ScriptRegion *srr) {
   
-  return thisroom.regionLightLevel[srr->id];
+  return (thisroom.regionTintLevel[srr->id] >> 24) & 0x000000ff;//thisroom.regionLightLevel[srr->id];// // Edited
 }
 
-void Region_Tint(ScriptRegion *srr, int red, int green, int blue, int amount) {
-  SetRegionTint(srr->id, red, green, blue, amount);
+void Region_Tint(ScriptRegion *srr, int red, int green, int blue, int amount, int luminance) {
+  SetRegionTint(srr->id, red, green, blue, amount, luminance);
 }
 
 int is_valid_character(int newchar) {
@@ -6013,9 +6028,24 @@ void CheckViewFrame (int view, int loop, int frame) {
   }
 }
 
-void CheckViewFrameForCharacter(CharacterInfo *chi) {
+// ADDON
+int GetPanningFromPosition(int x)
+{
+	int panning = ((x-divide_down_coordinate(offsetx))*255)/scrnwid;
 
+	if (panning < 0)
+      panning = 0;
+    if (panning > 255)
+      panning = 255;
+
+	return panning;
+}
+// END ADDON
+
+void CheckViewFrameForCharacter(CharacterInfo *chi) {
+	// fixed audio vol and panning
   int soundVolumeWas = play.sound_volume;
+  int soundPanningWas = play.sound_panning;
 
   if (chi->flags & CHF_SCALEVOLUME) {
     // adjust the sound volume using the character's zoom level
@@ -6023,6 +6053,8 @@ void CheckViewFrameForCharacter(CharacterInfo *chi) {
     if (zoom_level == 0)
       zoom_level = 100;
 
+	
+	
     play.sound_volume = (play.sound_volume * zoom_level) / 100;
 
     if (play.sound_volume < 0)
@@ -6030,9 +6062,11 @@ void CheckViewFrameForCharacter(CharacterInfo *chi) {
     if (play.sound_volume > 255)
       play.sound_volume = 255;
   }
+  play.sound_panning = GetPanningFromPosition(chi->x);
 
   CheckViewFrame(chi->view, chi->loop, chi->frame);
 
+  play.sound_panning = soundPanningWas;
   play.sound_volume = soundVolumeWas;
 }
 
@@ -6370,7 +6404,13 @@ int wantMoveNow (int chnum, CharacterInfo *chi) {
   // scaling 60-80%, move 75% speed
   if (charextra[chnum].zoom >= 60) {
     if ((chi->walkwaitcounter % 4) >= 1)
-      return 1;
+      return -1;
+	else if (charextra[chnum].xwas != INVALID_X) {
+      // move the second half of the movement to make it smoother
+      chi->x = charextra[chnum].xwas;
+      chi->y = charextra[chnum].ywas;
+      charextra[chnum].xwas = INVALID_X;
+	}
   }
   // scaling 30-60%, move 50% speed
   else if (charextra[chnum].zoom >= 30) {
@@ -6850,7 +6890,7 @@ void update_stuff() {
     else if ((doing_nothing == 0) || ((chi->flags & CHF_FIXVIEW) != 0))
       chi->idleleft = chi->idletime;
     // count idle time
-    else if ((loopcounter%40==0) || (charextra[aa].process_idle_this_time == 1)) {
+    else if ((loopcounter%2==0) || (charextra[aa].process_idle_this_time == 1)) {
       chi->idleleft--;
       if (chi->idleleft == -1) {
         int useloop=chi->loop;
@@ -7658,59 +7698,82 @@ void get_local_tint(int xpp, int ypp, int nolight,
 
   if (nolight == 0) {
 
-    int onRegion = 0;
+	  int onRegion = 0;
 
-    if ((play.ground_level_areas_disabled & GLED_EFFECTS) == 0) {
-      // check if the player is on a region, to find its
-      // light/tint level
-      onRegion = GetRegionAt (xpp, ypp);
-      if (onRegion == 0) {
-        // when walking, he might just be off a walkable area
-        onRegion = GetRegionAt (xpp - 3, ypp);
-        if (onRegion == 0)
-          onRegion = GetRegionAt (xpp + 3, ypp);
-        if (onRegion == 0)
-          onRegion = GetRegionAt (xpp, ypp - 3);
-        if (onRegion == 0)
-          onRegion = GetRegionAt (xpp, ypp + 3);
-      }
-    }
+	  if ((play.ground_level_areas_disabled & GLED_EFFECTS) == 0) {
+		  // check if the player is on a region, to find its
+		  // light/tint level
+		  onRegion = GetRegionAt (xpp, ypp);
+		  if (onRegion == 0) {
+			  // when walking, he might just be off a walkable area
+			  onRegion = GetRegionAt (xpp - 3, ypp);
+			  if (onRegion == 0)
+				  onRegion = GetRegionAt (xpp + 3, ypp);
+			  if (onRegion == 0)
+				  onRegion = GetRegionAt (xpp, ypp - 3);
+			  if (onRegion == 0)
+				  onRegion = GetRegionAt (xpp, ypp + 3);
+		  }
+	  }
 
-    if ((onRegion > 0) && (onRegion <= MAX_REGIONS)) {
-      light_level = thisroom.regionLightLevel[onRegion];
-      tint_level = thisroom.regionTintLevel[onRegion];
-    }
-    else if (onRegion <= 0) {
-      light_level = thisroom.regionLightLevel[0];
-      tint_level = thisroom.regionTintLevel[0];
-    }
-    if ((game.color_depth == 1) || ((tint_level & 0x00ffffff) == 0) ||
-        ((tint_level & TINT_IS_ENABLED) == 0))
-      tint_level = 0;
+	  if ((onRegion > 0) && (onRegion <= MAX_REGIONS)) { // fetch data from region
+		  light_level = thisroom.regionLightLevel[onRegion];
+		  tint_level = thisroom.regionTintLevel[onRegion];
+	  }
+	  else if (onRegion <= 0) {	// fetch data from the zero
+		  light_level = thisroom.regionLightLevel[0];
+		  tint_level = thisroom.regionTintLevel[0];
+	  }
+	  if ((game.color_depth == 1) || ((tint_level & 0xff000000) == 0) ) // if 8 bit or No-Tint
+		  tint_level = 0;
 
-    if (tint_level) {
-      tint_red = (unsigned char)(tint_level & 0x000ff);
-      tint_green = (unsigned char)((tint_level >> 8) & 0x000ff);
-      tint_blue = (unsigned char)((tint_level >> 16) & 0x000ff);
-      tint_amount = light_level;
-      // older versions of the editor had a bug - work around it
-      if (tint_amount < 0)
-        tint_amount = 50;
-      /*red = ((red + 100) * 25) / 20;
-      grn = ((grn + 100) * 25) / 20;
-      blu = ((blu + 100) * 25) / 20;*/
-    }
+	  //		  amount	lum		WHATITDOES	WHATITSHOULDDO
+	  // 0 0 0, 0		100 	NO	INVERT	NOTHING
+	  // x x x, 0		x		FULLSAT		NOTHING
+	  // 0 0 0, 100 	100 	NO INVERT	SATURED GRAY
+	  // 0 0 0, 100	0		NO NORMAL	BLACK
+	  // x x x  x		x		NORMAL		NORMAL
 
-    if (play.rtint_level > 0) {
-      // override with room tint
-      tint_level = 1;
-      tint_red = play.rtint_red;
-      tint_green = play.rtint_green;
-      tint_blue = play.rtint_blue;
-      tint_amount = play.rtint_level;
-      tint_light = play.rtint_light;
-    }
-  }
+	  if (tint_level) {
+		  tint_red = (unsigned char)(tint_level & 0x000ff);
+		  tint_green = (unsigned char)((tint_level >> 8) & 0x000ff);
+		  tint_blue = (unsigned char)((tint_level >> 16) & 0x000ff);
+		  /*
+		  if ( tint_red == 10 )
+		  {
+		  char cicci[50];
+		  sprintf(cicci,"Wela: %d",thisroom.regionTintLevel[onRegion]);
+		  quit(cicci);
+		  }
+		  */
+		  // why aren't we getting results ? >:(
+		  tint_amount = (unsigned char)((tint_level >> 24) & 0x000ff);//(unsigned char)((tint_level >> 24) & 0x000ff);//light_level;    // light_level my ass
+		  // older versions of the editor had a bug - work around it
+		  tint_light = thisroom.regionLightLevel[onRegion];
+		  light_level = 255;
+		  /*
+		  if (tint_amount < 0)
+		  tint_amount = 50;
+		  */
+		  //light_level = 0;
+
+		  /*red = ((red + 100) * 25) / 20;
+		  grn = ((grn + 100) * 25) / 20;
+		  blu = ((blu + 100) * 25) / 20;*/
+	  }
+	  
+
+	  if (play.rtint_level > 0) { // AmbientTint overrides everything
+	  // override with room tint
+	  tint_level = 1;
+	  tint_red = play.rtint_red;
+	  tint_green = play.rtint_green;
+	  tint_blue = play.rtint_blue;
+	  tint_amount = play.rtint_level;
+	  tint_light = play.rtint_light;
+	  }
+	  
+  } // end (nolight == 0)
 
   // copy to output parameters
   *tint_amnt = tint_amount;
@@ -7719,7 +7782,7 @@ void get_local_tint(int xpp, int ypp, int nolight,
   *tint_b = tint_blue;
   *tint_lit = tint_light;
   if (light_lev)
-    *light_lev = light_level;
+	  *light_lev = light_level;
 }
 
 // Applies the specified RGB Tint or Light Level to the actsps
@@ -9943,6 +10006,153 @@ ScriptDrawingSurface* DrawingSurface_CreateCopy(ScriptDrawingSurface *sds)
   return NULL;
 }
 
+// Calin's true alpha blending
+void Manual_Draw(BITMAP *src, BITMAP *dest, int destx, int desty, int trans)
+{
+	trans = 100 - trans;
+
+	long srcWidth, srcHeight, destWidth, destHeight, destColDepth;
+
+	acquire_bitmap(src);
+	acquire_bitmap(dest);
+
+	unsigned char **srccharbuffer = src->line; //8bit
+	unsigned short **srcshortbuffer = (unsigned short**)srccharbuffer; //16bit;
+    unsigned long **srclongbuffer = (unsigned long**)srccharbuffer; //32bit
+
+	unsigned char **destcharbuffer = dest->line; //8bit
+	unsigned short **destshortbuffer = (unsigned short**)destcharbuffer; //16bit;
+    unsigned long **destlongbuffer = (unsigned long**)destcharbuffer; //32bit
+
+	int transColor = bitmap_mask_color (src);
+
+	srcWidth = src->w;
+	srcHeight = src->h;
+	destWidth = dest->w;
+	destHeight = dest->h;
+	destColDepth = bitmap_color_depth(dest);
+
+	if (srcWidth + destx > destWidth) srcWidth = destWidth - destx;
+	if (srcHeight + desty > destHeight) srcHeight = destHeight - desty;
+
+	int startx = MAX(0, (-1 * destx));
+	int starty = MAX(0, (-1 * desty));
+
+	
+	int srca, srcr, srcg, srcb, desta, destr, destg, destb, finalr, finalg, finalb, finala, col;
+
+	for(int x = startx; x < srcWidth; x ++)
+	{
+		
+		for(int y = starty; y <  srcHeight; y ++)
+		{
+			int srcyy = y;
+			int srcxx = x;
+			int destyy = y + desty;
+			int destxx = x + destx;
+				if (destColDepth == 8)
+				{
+					if (srccharbuffer[srcyy][srcxx] != transColor) destcharbuffer[destyy][destxx] = srccharbuffer[srcyy][srcxx];
+				}
+				else if (destColDepth == 16)
+				{
+					if (srcshortbuffer[srcyy][srcxx] != transColor) destshortbuffer[destyy][destxx] = srcshortbuffer[srcyy][srcxx];
+				}
+				else if (destColDepth == 32)
+				{
+					//if (srclongbuffer[srcyy][srcxx] != transColor) destlongbuffer[destyy][destxx] = srclongbuffer[srcyy][srcxx];
+					
+					srca =  (geta32(srclongbuffer[srcyy][srcxx])) * trans / 100;
+            
+					if (srca != 0) {
+						   
+						srcr =  getr32(srclongbuffer[srcyy][srcxx]);  
+						srcg =  getg32(srclongbuffer[srcyy][srcxx]);
+						srcb =  getb32(srclongbuffer[srcyy][srcxx]);
+    
+						destr =  getr32(destlongbuffer[destyy][destxx]);
+						destg =  getg32(destlongbuffer[destyy][destxx]);
+						destb =  getb32(destlongbuffer[destyy][destxx]);
+						desta =  geta32(destlongbuffer[destyy][destxx]);
+                
+
+						finalr = srcr;
+						finalg = srcg;
+						finalb = srcb;   
+              
+                                                               
+						finala = 255-(255-srca)*(255-desta)/255;                                              
+						finalr = srca*finalr/finala + desta*destr*(255-srca)/finala/255;
+						finalg = srca*finalg/finala + desta*destg*(255-srca)/finala/255;
+						finalb = srca*finalb/finala + desta*destb*(255-srca)/finala/255;
+						col = makeacol32(finalr, finalg, finalb, finala);
+						destlongbuffer[destyy][destxx] = col;
+					}
+
+				}
+		}
+	}
+	
+	release_bitmap (src);
+	release_bitmap (dest);
+
+	
+
+}
+
+void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slot, int trans, int width, int height)
+{
+  if ((slot < 0) || (slot >= MAX_SPRITES) || (spriteset[slot] == NULL))
+    quit("!DrawingSurface.DrawImage: invalid sprite slot number specified");
+
+  if ((trans < 0) || (trans > 100))
+    quit("!DrawingSurface.DrawImage: invalid transparency setting");
+
+  // 100% transparency, don't draw anything
+  if (trans == 100)
+    return;
+
+  BITMAP *sourcePic = spriteset[slot];
+  bool needToFreeBitmap = false;
+
+  if (width != SCR_NO_VALUE)
+  {
+    // Resize specified
+
+    if ((width < 1) || (height < 1))
+      return;
+
+    sds->MultiplyCoordinates(&width, &height);
+
+    // resize the sprite to the requested size
+    block newPic = create_bitmap_ex(bitmap_color_depth(sourcePic), width, height);
+
+    stretch_blit(sourcePic, newPic,
+                 0, 0, spritewidth[slot], spriteheight[slot],
+                 0, 0, width, height);
+
+    sourcePic = newPic;
+    needToFreeBitmap = true;
+    update_polled_stuff();
+  }
+
+  BITMAP* dest = sds->GetBitmapSurface();
+  
+  
+  if (bitmap_color_depth(sourcePic) != bitmap_color_depth(dest)) {
+    debug_log("RawDrawImage: Sprite %d colour depth %d-bit not same as background depth %d-bit", slot, bitmap_color_depth(spriteset[slot]), bitmap_color_depth(abuf));
+  }
+
+ Manual_Draw(sourcePic, dest, xx, yy, trans);
+
+
+
+  if (needToFreeBitmap)
+    destroy_bitmap(sourcePic);
+}
+
+// Calin's true alpha blending - end
+
 void DrawingSurface_DrawSurface(ScriptDrawingSurface* target, ScriptDrawingSurface* source, int translev) {
   if ((translev < 0) || (translev > 99))
     quit("!DrawingSurface.DrawSurface: invalid parameter (transparency must be 0-99)");
@@ -9969,6 +10179,8 @@ void DrawingSurface_DrawSurface(ScriptDrawingSurface* target, ScriptDrawingSurfa
   target->FinishedDrawing();
 }
 
+
+/* OLD VERSION
 void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slot, int trans, int width, int height)
 {
   if ((slot < 0) || (slot >= MAX_SPRITES) || (spriteset[slot] == NULL))
@@ -10025,6 +10237,7 @@ void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slo
     destroy_bitmap(sourcePic);
 }
 
+*/
 int Game_GetColorFromRGB(int red, int grn, int blu) {
   if ((red < 0) || (red > 255) || (grn < 0) || (grn > 255) ||
       (blu < 0) || (blu > 255))
@@ -24674,7 +24887,7 @@ void setup_script_exports() {
   scAdd_External_Symbol("Hotspot::get_WalkToY", (void*)Hotspot_GetWalkToY);
 
   scAdd_External_Symbol("Region::GetAtRoomXY^2",(void *)GetRegionAtLocation);
-  scAdd_External_Symbol("Region::Tint^4", (void*)Region_Tint);
+  scAdd_External_Symbol("Region::Tint^5", (void*)Region_Tint);
   scAdd_External_Symbol("Region::RunInteraction^1", (void*)Region_RunInteraction);
   scAdd_External_Symbol("Region::get_Enabled", (void*)Region_GetEnabled);
   scAdd_External_Symbol("Region::set_Enabled", (void*)Region_SetEnabled);
@@ -26318,6 +26531,7 @@ void init_game_settings() {
   play.offsets_locked=0;
   play.cant_skip_speech = user_to_internal_skip_speech(game.options[OPT_NOSKIPTEXT]);
   play.sound_volume = 255;
+  play.sound_panning = 128;
   play.speech_volume = 255;
   play.normal_font = 0;
   play.speech_font = 1;

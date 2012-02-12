@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="acwin"
 	ProjectGUID="{0FAE0543-C09B-43CE-AEE1-D68FA8B33276}"
 	RootNamespace="acwin"
@@ -327,7 +327,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				CommandLine="cmd /c copy e:\code\ags\acwin\release\acwin.exe e:\code\ags\agsedit\release&#x0D;&#x0A;cmd /c copy e:\code\ags\acwin\release\acwin.exe E:\Code\ags\netedit\AGS.Editor\bin\Debug&#x0D;&#x0A;"
+				CommandLine=""
 			/>
 		</Configuration>
 	</Configurations>
@@ -3021,6 +3021,18 @@
 				</File>
 				<File
 					RelativePath="libsrc\allegro-4.2.2-agspatch\win\wwnd.c"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="adexfilters"
+				>
+				<File
+					RelativePath=".\libsrc\adexfilters\adexfilters.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\libsrc\adexfilters\adexfilters.h"
 					>
 				</File>
 			</Filter>

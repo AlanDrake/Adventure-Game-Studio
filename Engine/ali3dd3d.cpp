@@ -1066,7 +1066,7 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
       _pollingCallback();
 
     // This call is v. slow (known DX9 issue)
-    if (direct3ddevice->GetFrontBufferData(0, surface) != D3D_OK)
+    if (direct3ddevice->GetFrontBufferData(0, surface) != D3D_OK) // TODO: Find a way to get it from the backbuffer surface
     {
       throw Ali3DException("GetFrontBufferData failed");
     }
@@ -1082,6 +1082,7 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
       // Stupidly, D3D creates a screenshot of the entire
       // desktop, so we have to manually extract the
       // bit with our game's window on it
+	  // Alex: We won't need this anymore if we manage to get the screenshot from the backbuffer
       GetWindowInfo(win_get_window(), &windowInfo);
       areaToCapture = &windowInfo.rcClient;
     }
@@ -1169,7 +1170,7 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
 
 void D3DGraphicsDriver::RenderToBackBuffer()
 {
-  throw Ali3DException("D3D driver does not have a back buffer");
+  throw Ali3DException("D3D driver does not have a back buffer"); // We could use a surface as backbuffer
 }
 
 void D3DGraphicsDriver::Render()
@@ -1375,6 +1376,9 @@ void D3DGraphicsDriver::_renderSprite(SpriteDrawListEntry *drawListEntry, bool g
     direct3ddevice->SetTexture(0, bmpToDraw->_tiles[ti].texture);
 
     hr = direct3ddevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, ti * 4, 2);
+
+	_filter->SetSamplerStateForStandardSprite(direct3ddevice); // Calling it to restore in case smooth is active, so we don't double blur
+
     if (hr != D3D_OK) 
     {
       throw Ali3DException("IDirect3DDevice9::DrawPrimitive failed");
@@ -1385,6 +1389,38 @@ void D3DGraphicsDriver::_renderSprite(SpriteDrawListEntry *drawListEntry, bool g
 
 void D3DGraphicsDriver::_render(GlobalFlipType flip, bool clearDrawListAfterwards)
 {
+  IDirect3DSurface9 *pBackBuffer = NULL;
+  IDirect3DSurface9 *pRenderTarget = NULL;
+ 
+  if (direct3ddevice->CreateRenderTarget(	
+						_newmode_width,
+						_newmode_height,
+					    D3DFMT_A8R8G8B8,
+						D3DMULTISAMPLE_NONE,
+						0,
+						false,
+						&pRenderTarget,
+						NULL	)!= D3D_OK)
+  {
+    throw Ali3DException("CreateRenderTarget failed");
+  }
+  /*if () != D3D_OK)
+    {
+      throw Ali3DException("IDirect3DSurface9::LockRect failed");
+    }*/
+
+
+  // Right before rendering
+  if (direct3ddevice->GetRenderTarget(0, &pBackBuffer) != D3D_OK)
+    {
+      throw Ali3DException("IDirect3DSurface9::GetRenderTarget failed");
+    }
+  if (direct3ddevice->SetRenderTarget(0, pRenderTarget) != D3D_OK)
+    {
+      throw Ali3DException("IDirect3DSurface9::SetRenderTarget failed");
+    }
+
+
   SpriteDrawListEntry *listToDraw = drawList;
   int listSize = numToDraw;
   HRESULT hr;
@@ -1428,7 +1464,24 @@ void D3DGraphicsDriver::_render(GlobalFlipType flip, bool clearDrawListAfterward
 
   direct3ddevice->EndScene();
 
+  // After rendering
+  if (direct3ddevice->SetRenderTarget(0, pBackBuffer)!= D3D_OK)
+    {
+      throw Ali3DException("IDirect3DSurface9::SetRenderTarget failed");
+    }
+  if (direct3ddevice->StretchRect(pRenderTarget, NULL, pBackBuffer, NULL, strncmp(_filter->GetFilterID(),"AA",2)==0?D3DTEXF_LINEAR:D3DTEXF_POINT) != D3D_OK)
+    {
+      throw Ali3DException("IDirect3DSurface9::StretchRect failed");
+    }
+
   hr = direct3ddevice->Present(NULL, NULL, NULL, NULL);
+
+
+  
+  // AFTER the after	
+  pBackBuffer->Release();
+  pRenderTarget->Release();
+	
 
   if (clearDrawListAfterwards)
   {

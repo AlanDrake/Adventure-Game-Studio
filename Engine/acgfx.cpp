@@ -22,6 +22,7 @@
 
 #define BYTES_PER_PIXEL(bpp)     (((int)(bpp) + 7) / 8)
 
+
 extern void mgraphconfine(int,int,int,int);
 extern void msetcallback(IMouseGetPosCallback *gpCallback);
 extern void msetgraphpos(int,int);
@@ -228,6 +229,9 @@ extern "C" void Super2xSaI(BITMAP * src, BITMAP * dest, int s_x, int s_y, int d_
 extern void InitLUTs();
 extern void hq2x_32( unsigned char * pIn, unsigned char * pOut, int Xres, int Yres, int BpL );
 extern void hq3x_32( unsigned char * pIn, unsigned char * pOut, int Xres, int Yres, int BpL );
+extern void adex_scanline_2x(BITMAP *src, BITMAP *dest);
+extern void adex_tvcrt_4x(BITMAP *src, BITMAP *dest);
+extern void adex_monitorcrt_4x(BITMAP *src, BITMAP *dest);
 
 
 // Standard do-nothing filter
@@ -377,8 +381,8 @@ struct AAD3DGFXFilter : D3DGFXFilter {
   {
 #ifdef WINDOWS_VERSION
     IDirect3DDevice9* d3d9 = ((IDirect3DDevice9*)direct3ddevice9);
-    d3d9->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-    d3d9->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+	d3d9->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+    d3d9->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
 #endif
   }
 
@@ -697,6 +701,166 @@ public:
   }
 };
 
+struct AdexScanline2xGFXFilter : public ScalingAllegroGFXFilter {
+private:
+  BITMAP *realScreenBuffer;
+
+public:
+
+  AdexScanline2xGFXFilter(bool justCheckingForSetup) : ScalingAllegroGFXFilter(2, justCheckingForSetup) { }
+
+  virtual const char* Initialize(int width, int height, int colDepth) {
+    if (colDepth < 32)
+      return "Only supports 32-bit colour games";
+
+    return ScalingGFXFilter::Initialize(width, height, colDepth);
+  }
+
+
+  virtual BITMAP* ScreenInitialized(BITMAP *screen, int fakeWidth, int fakeHeight) {
+    realScreen = screen;
+    realScreenBuffer = create_bitmap(screen->w, screen->h);
+    realScreenSizedBuffer = create_bitmap_ex(bitmap_color_depth(screen), screen->w, screen->h);
+    fakeScreen = create_bitmap_ex(bitmap_color_depth(screen), fakeWidth, fakeHeight);
+    InitLUTs();
+    return fakeScreen;
+  }
+
+  virtual BITMAP *ShutdownAndReturnRealScreen(BITMAP *currentScreen) {
+    destroy_bitmap(fakeScreen);
+    destroy_bitmap(realScreenBuffer);
+    destroy_bitmap(realScreenSizedBuffer);
+    return realScreen;
+  }
+
+  virtual void RenderScreen(BITMAP *toRender, int x, int y) {
+
+    acquire_bitmap(realScreenBuffer);
+	adex_scanline_2x(toRender, realScreenBuffer);
+    release_bitmap(realScreenBuffer);
+
+    blit(realScreenBuffer, realScreen, 0, 0, x * MULTIPLIER, y * MULTIPLIER, realScreen->w, realScreen->h);
+
+    lastBlitFrom = toRender;
+  }
+
+  virtual const char *GetVersionBoxText() {
+    return "Adex Scanline 2x filter (32-bit only)[";
+  }
+
+  virtual const char *GetFilterID() {
+    return "AdexScanline2x";
+  }
+};
+
+
+struct AdexTVCRT4xGFXFilter : public ScalingAllegroGFXFilter {
+private:
+  BITMAP *realScreenBuffer;
+
+public:
+
+  AdexTVCRT4xGFXFilter(bool justCheckingForSetup) : ScalingAllegroGFXFilter(4, justCheckingForSetup) { }
+
+  virtual const char* Initialize(int width, int height, int colDepth) {
+    if (colDepth < 32)
+      return "Only supports 32-bit colour games";
+
+    return ScalingGFXFilter::Initialize(width, height, colDepth);
+  }
+
+
+  virtual BITMAP* ScreenInitialized(BITMAP *screen, int fakeWidth, int fakeHeight) {
+    realScreen = screen;
+    realScreenBuffer = create_bitmap(screen->w, screen->h);
+    realScreenSizedBuffer = create_bitmap_ex(bitmap_color_depth(screen), screen->w, screen->h);
+    fakeScreen = create_bitmap_ex(bitmap_color_depth(screen), fakeWidth, fakeHeight);
+    InitLUTs();
+    return fakeScreen;
+  }
+
+  virtual BITMAP *ShutdownAndReturnRealScreen(BITMAP *currentScreen) {
+    destroy_bitmap(fakeScreen);
+    destroy_bitmap(realScreenBuffer);
+    destroy_bitmap(realScreenSizedBuffer);
+    return realScreen;
+  }
+
+  virtual void RenderScreen(BITMAP *toRender, int x, int y) {
+
+    acquire_bitmap(realScreenBuffer);
+	adex_tvcrt_4x(toRender, realScreenBuffer);
+    release_bitmap(realScreenBuffer);
+
+    blit(realScreenBuffer, realScreen, 0, 0, x * MULTIPLIER, y * MULTIPLIER, realScreen->w, realScreen->h);
+
+    lastBlitFrom = toRender;
+  }
+
+  virtual const char *GetVersionBoxText() {
+    return "Adex TV CRT 4x filter (32-bit only)[";
+  }
+
+  virtual const char *GetFilterID() {
+    return "AdexTVCRT4x";
+  }
+};
+
+
+struct AdexPCCRT4xGFXFilter : public ScalingAllegroGFXFilter {
+private:
+  BITMAP *realScreenBuffer;
+
+public:
+
+  AdexPCCRT4xGFXFilter(bool justCheckingForSetup) : ScalingAllegroGFXFilter(4, justCheckingForSetup) { }
+
+  virtual const char* Initialize(int width, int height, int colDepth) {
+    if (colDepth < 32)
+      return "Only supports 32-bit colour games";
+
+    return ScalingGFXFilter::Initialize(width, height, colDepth);
+  }
+
+
+  virtual BITMAP* ScreenInitialized(BITMAP *screen, int fakeWidth, int fakeHeight) {
+    realScreen = screen;
+    realScreenBuffer = create_bitmap(screen->w, screen->h);
+    realScreenSizedBuffer = create_bitmap_ex(bitmap_color_depth(screen), screen->w, screen->h);
+    fakeScreen = create_bitmap_ex(bitmap_color_depth(screen), fakeWidth, fakeHeight);
+    InitLUTs();
+    return fakeScreen;
+  }
+
+  virtual BITMAP *ShutdownAndReturnRealScreen(BITMAP *currentScreen) {
+    destroy_bitmap(fakeScreen);
+    destroy_bitmap(realScreenBuffer);
+    destroy_bitmap(realScreenSizedBuffer);
+    return realScreen;
+  }
+
+  virtual void RenderScreen(BITMAP *toRender, int x, int y) {
+
+    acquire_bitmap(realScreenBuffer);
+	adex_monitorcrt_4x(toRender, realScreenBuffer);
+    release_bitmap(realScreenBuffer);
+
+    blit(realScreenBuffer, realScreen, 0, 0, x * MULTIPLIER, y * MULTIPLIER, realScreen->w, realScreen->h);
+
+    lastBlitFrom = toRender;
+  }
+
+  virtual const char *GetVersionBoxText() {
+    return "Adex PC CRT 4x filter (32-bit only)[";
+  }
+
+  virtual const char *GetFilterID() {
+    return "AdexPCCRT4x";
+  }
+};
+
+
+
 GFXFilter *gfxFilterList[10];
 GFXFilter *gfxFilterListD3D[10];
 
@@ -708,7 +872,10 @@ GFXFilter **get_allegro_gfx_filter_list(bool checkingForSetup) {
   gfxFilterList[3] = new ScalingAllegroGFXFilter(4, checkingForSetup);
   gfxFilterList[4] = new Hq2xGFXFilter(checkingForSetup);
   gfxFilterList[5] = new Hq3xGFXFilter(checkingForSetup);
-  gfxFilterList[6] = NULL;
+  gfxFilterList[6] = new AdexScanline2xGFXFilter(checkingForSetup);
+  gfxFilterList[7] = new AdexTVCRT4xGFXFilter(checkingForSetup);
+  gfxFilterList[8] = new AdexPCCRT4xGFXFilter(checkingForSetup);
+  gfxFilterList[9] = NULL;
 
   return gfxFilterList;
 }

@@ -42,7 +42,7 @@ class WFNFontRenderer : public IAGSFontRenderer {
 public:
   virtual bool LoadFromDisk(int fontNumber, int fontSize);
   virtual void FreeMemory(int fontNumber);
-  virtual bool SupportsExtendedCharacters(int fontNumber) { return false; }
+  virtual bool SupportsExtendedCharacters(int fontNumber) { return extendedCharacters[fontNumber]; }
   virtual int GetTextWidth(const char *text, int fontNumber);
   virtual int GetTextHeight(const char *text, int fontNumber);
   virtual void RenderText(const char *text, int fontNumber, BITMAP *destination, int x, int y, int colour) ;
@@ -50,7 +50,8 @@ public:
   virtual void EnsureTextValidForFont(char *text, int fontNumber);
 
 private:
-  int printchar(int xxx, int yyy, wgtfont foo, int charr);
+  int printchar(int xxx, int yyy, int fontNumber, int charr);
+  bool extendedCharacters[MAX_FONTS];
 };
 
 class TTFFontRenderer : public IAGSFontRenderer {
@@ -203,11 +204,14 @@ void WFNFontRenderer::AdjustYCoordinateForFont(int *ycoord, int fontNumber)
   // Do nothing
 }
 
+
 void WFNFontRenderer::EnsureTextValidForFont(char *text, int fontNumber)
 {
+  if ( extendedCharacters[fontNumber] ) return; 
+
   // replace any extended characters with question marks
   while (text[0]!=0) {
-    if ((unsigned char)text[0] > 126) 
+	if ((unsigned char)text[0] > 127 ) // Why was this "> 126" ?
     {
       text[0] = '?';
     }
@@ -218,24 +222,24 @@ void WFNFontRenderer::EnsureTextValidForFont(char *text, int fontNumber)
 int WFNFontRenderer::GetTextWidth(const char *texx, int fontNumber)
 {
   wgtfont foon = fonts[fontNumber];
-  short *tabaddr;
+  unsigned short *tabaddr;
   int totlen = 0;
   unsigned int dd;
 
-  char thisCharacter;
+  unsigned char thisCharacter;
   for (dd = 0; dd < strlen(texx); dd++) 
   {
     thisCharacter = texx[dd];
-    if ((thisCharacter >= 128) || (thisCharacter < 0)) thisCharacter = '?';
+     if ( !extendedCharacters[fontNumber] && (thisCharacter >= 128) )  thisCharacter = '?';
 #ifndef ALLEGRO_BIG_ENDIAN
-    tabaddr = (short *)&foon[15];
-    tabaddr = (short *)&foon[tabaddr[0]];     // get address table
-    tabaddr = (short *)&foon[tabaddr[thisCharacter]];      // use table to find character
+    tabaddr = (unsigned short *)&foon[15];
+    tabaddr = (unsigned short *)&foon[tabaddr[0]];     // get address table
+    tabaddr = (unsigned short *)&foon[tabaddr[thisCharacter]];      // use table to find character
     totlen += tabaddr[0];
 #else
-    tabaddr = (short *)&foon[15];
-    tabaddr = (short *)&foon[__short_swap_endian(tabaddr[0])];     // get address table
-    tabaddr = (short *)&foon[__short_swap_endian(tabaddr[thisCharacter])];      // use table to find character
+    tabaddr = (unsigned short *)&foon[15];
+    tabaddr = (unsigned short *)&foon[__short_swap_endian(tabaddr[0])];     // get address table
+    tabaddr = (unsigned short *)&foon[__short_swap_endian(tabaddr[thisCharacter])];      // use table to find character
     totlen += __short_swap_endian(tabaddr[0]);
 #endif
   }
@@ -244,25 +248,25 @@ int WFNFontRenderer::GetTextWidth(const char *texx, int fontNumber)
 
 int WFNFontRenderer::GetTextHeight(const char *texx, int fontNumber)
 {
-  short *tabaddr;
+  unsigned short *tabaddr;
   int highest = 0;
   unsigned int dd;
   wgtfont foon = fonts[fontNumber];
 
-  char thisCharacter;
+  unsigned char thisCharacter;
   for (dd = 0; dd < strlen(texx); dd++) 
   {
     thisCharacter = texx[dd];
-    if ((thisCharacter >= 128) || (thisCharacter < 0)) thisCharacter = '?';
+    if ( !extendedCharacters[fontNumber] && (thisCharacter >= 128) )  thisCharacter = '?';
 #ifndef ALLEGRO_BIG_ENDIAN
-    tabaddr = (short *)&foon[15];
-    tabaddr = (short *)&foon[tabaddr[0]];     // get address table
-    tabaddr = (short *)&foon[tabaddr[thisCharacter]];      // use table to find character
+    tabaddr = (unsigned short *)&foon[15];
+    tabaddr = (unsigned short *)&foon[tabaddr[0]];     // get address table
+    tabaddr = (unsigned short *)&foon[tabaddr[thisCharacter]];      // use table to find character
     int charHeight = tabaddr[1];
 #else
-    tabaddr = (short *)&foon[15];
-    tabaddr = (short *)&foon[__short_swap_endian(tabaddr[0])];     // get address table
-    tabaddr = (short *)&foon[__short_swap_endian(tabaddr[thisCharacter])];      // use table to find character
+    tabaddr = (unsigned short *)&foon[15];
+    tabaddr = (unsigned short *)&foon[__short_swap_endian(tabaddr[0])];     // get address table
+    tabaddr = (unsigned short *)&foon[__short_swap_endian(tabaddr[thisCharacter])];      // use table to find character
     int charHeight = __short_swap_endian(tabaddr[1]);
 #endif
     if (charHeight > highest)
@@ -281,30 +285,33 @@ void WFNFontRenderer::RenderText(const char *text, int fontNumber, BITMAP *desti
 #endif
 
   for (ee = 0; ee < strlen(text); ee++)
-    x += printchar(x, y, fonts[fontNumber], text[ee]);
+    x += printchar(x, y, fontNumber, text[ee]);
 
 #ifdef THIS_IS_THE_ENGINE
   our_eip = oldeip;
 #endif
 }
 
-int WFNFontRenderer::printchar(int xxx, int yyy, wgtfont foo, int charr)
+int WFNFontRenderer::printchar(int xxx, int yyy, int fontNumber, int charr)
 {
-  short *tabaddr = (short *)&foo[15];
+  wgtfont foo = fonts[fontNumber];
+  unsigned short *tabaddr = (unsigned short *)&foo[15];
   unsigned char *actdata;
   int tt, ss, bytewid, orixp = xxx;
 
-  if ((charr > 127) || (charr < 0))
+  if ( !extendedCharacters[fontNumber] && ((unsigned char)charr >= 128) ) 
     charr = '?';
 
+  
+
 #ifndef ALLEGRO_BIG_ENDIAN
-  tabaddr = (short *)&foo[tabaddr[0]];        // get address table
-  tabaddr = (short *)&foo[tabaddr[charr]];    // use table to find character
+  tabaddr = (unsigned short *)&foo[tabaddr[0]];        // get address table
+  tabaddr = (unsigned short *)&foo[tabaddr[(unsigned char)charr]];    // use table to find character (MUST BE UNSIGNED! - Alan)
   int charWidth = tabaddr[0];
   int charHeight = tabaddr[1];
 #else
-  tabaddr = (short *)&foo[__short_swap_endian(tabaddr[0])];
-  tabaddr = (short *)&foo[__short_swap_endian(tabaddr[charr])];
+  tabaddr = (unsigned short *)&foo[__short_swap_endian(tabaddr[0])];
+  tabaddr = (unsigned short *)&foo[__short_swap_endian(tabaddr[(unsigned char)charr])];
   int charWidth = __short_swap_endian(tabaddr[0]);
   int charHeight = __short_swap_endian(tabaddr[1]);
 #endif
@@ -374,6 +381,12 @@ bool WFNFontRenderer::LoadFromDisk(int fontNumber, int fontSize)
   fclose(ffi);
 
   fonts[fontNumber] = tempalloc;
+
+  // Check if this font supports extended ASCII - Alan
+  unsigned short *tabaddr = (unsigned short *)&fonts[fontNumber][15];
+  extendedCharacters[fontNumber] = ((lenof - tabaddr[0])/2 > 128); // Are there more than 128 entries ?
+  // --
+
   return true;
 }
 

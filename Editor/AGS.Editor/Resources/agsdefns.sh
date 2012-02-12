@@ -1555,7 +1555,7 @@ managed struct Region {
   /// Runs the event handler for the specified event for this region.
   import void RunInteraction(int event);
   /// Sets the region tint which will apply to characters that are standing on the region.
-  import void Tint(int red, int green, int blue, int amount);
+  import void Tint(int red, int green, int blue, int amount, int luminance);
   /// Gets/sets whether this region is enabled.
   import attribute bool Enabled;
   /// Gets the ID number for this region.

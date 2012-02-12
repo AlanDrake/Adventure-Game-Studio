@@ -289,6 +289,10 @@ namespace AGS.CScript.Compiler
 			{
 				// do nothing -- 2.72 put these as markers in the script
 			}
+            else if ((directive == "region") || (directive == "endregion"))
+            {
+                // do nothing -- but helps in organizing the code
+            }
 			else
 			{
 				RecordError(ErrorCode.UnknownPreprocessorDirective, "Unknown preprocessor directive '" + directive + "'");

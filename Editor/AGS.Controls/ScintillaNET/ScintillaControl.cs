@@ -51,26 +51,46 @@ namespace Scintilla
             this.SendMessageDirect(Constants.SCI_SETPROPERTY, "fold.compact", "0");
             this.SendMessageDirect(Constants.SCI_SETPROPERTY, "fold.comment", "1");
             this.SendMessageDirect(Constants.SCI_SETPROPERTY, "fold.preprocessor", "1");
-     
+
             this.SendMessageDirect(Constants.SCI_SETMARGINWIDTHN, 2, 16);
             this.SendMessageDirect(Constants.SCI_SETMARGINTYPEN, 2, (int)Constants.SC_MARGIN_SYMBOL);
             this.SendMessageDirect(Constants.SCI_SETMARGINMASKN, 2, (int)Constants.SC_MASK_FOLDERS);
-      
-            
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDER, (int)Constants.SC_MARK_PLUS);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEROPEN, (int)Constants.SC_MARK_MINUS);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEREND, (int)Constants.SC_MARK_EMPTY);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERMIDTAIL, (int)Constants.SC_MARK_EMPTY);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEROPENMID, (int)Constants.SC_MARK_EMPTY);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERSUB, (int)Constants.SC_MARK_EMPTY);
-            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERTAIL, (int)Constants.SC_MARK_EMPTY);
+
+
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDER, (int)Constants.SC_MARK_BOXPLUS);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEROPEN, (int)Constants.SC_MARK_BOXMINUS);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEREND, (int)Constants.SC_MARK_BOXPLUSCONNECTED);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERMIDTAIL, (int)Constants.SC_MARK_TCORNER);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDEROPENMID, (int)Constants.SC_MARK_BOXMINUSCONNECTED);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERSUB, (int)Constants.SC_MARK_VLINE);
+            this.SendMessageDirect(Constants.SCI_MARKERDEFINE, Constants.SC_MARKNUM_FOLDERTAIL, (int)Constants.SC_MARK_LCORNER);
 
             this.SendMessageDirect(Constants.SCI_SETFOLDFLAGS, 16, 0); // 16  	Draw line below if not expanded
 
+            // put the right color in those markers
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDER, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDER, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDEROPEN, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDEROPEN, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDEREND, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDEREND, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDERMIDTAIL, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDERMIDTAIL, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDEROPENMID, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDEROPENMID, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDERSUB, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDERSUB, 0x808080);
+            this.SendMessageDirect(Constants.SCI_MARKERSETFORE, Constants.SC_MARKNUM_FOLDERTAIL, 0xF3F3F3);
+            this.SendMessageDirect(Constants.SCI_MARKERSETBACK, Constants.SC_MARKNUM_FOLDERTAIL, 0x808080);
+
+
+
             SetMarginSensitivity(2, 1);
 
-
-            
+            // I WANT MY OWN FUNCTION >:I
+            // did this way so it was not needed to ship AGSEditor to make it work;
+            this.SendMessageDirect(Constants.SCI_SETINDENTATIONGUIDES, 3);
+            this.SendMessageDirect(Constants.SCI_STYLESETFORE, Constants.STYLE_INDENTGUIDE, 0xDDDDDD);           
 
         }
 
