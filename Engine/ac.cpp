@@ -3765,9 +3765,7 @@ void SetRegionTint (int area, int red, int green, int blue, int amount, int lumi
 
   DEBUG_CONSOLE("Region %d tint set to %d,%d,%d %d %d", area, red, green, blue, amount, luminance);
 
-  /*red -= 100;
-  green -= 100;
-  blue -= 100;*/
+// The following table shows what used to happen, it all works now, I just keep it for reference - Alan
 // 						WHATITDOES	WHATITSHOULDDO
 // 0 0 0, 0		100 	NOTHING		NOTHING
 // x x x, 0		x		FULLSAT		NOTHING

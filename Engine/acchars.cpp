@@ -19,6 +19,9 @@
 #include "acruntim.h"
 #include <math.h>
 
+// Direction better matching perspective - Alan
+//#define CUSTOM_PERSPECTIVE_DIRECTIONS
+
 extern int current_screen_resolution_multiplier;
 // order of loops to turn character in circle from down to down
 int turnlooporder[8] = {0, 6, 1, 7, 3, 5, 2, 4};
@@ -220,7 +223,11 @@ void fix_player_sprite(MoveList*cmls,CharacterInfo*chinf) {
 
   if (hasUpDownLoops(chinf) == 0)
     want_horiz = 1;
+  #ifdef CUSTOM_PERSPECTIVE_DIRECTIONS
+  else if (abs(ypmove) > abs(xpmove)/2) // Mod for direction better matching perspective - Alan
+  #else
   else if (abs(ypmove) > abs(xpmove))
+  #endif
     want_horiz = 0;
 
   no_diagonal = useDiagonal (chinf);
