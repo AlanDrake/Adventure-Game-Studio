@@ -7736,14 +7736,7 @@ void get_local_tint(int xpp, int ypp, int nolight,
 		  tint_red = (unsigned char)(tint_level & 0x000ff);
 		  tint_green = (unsigned char)((tint_level >> 8) & 0x000ff);
 		  tint_blue = (unsigned char)((tint_level >> 16) & 0x000ff);
-		  /*
-		  if ( tint_red == 10 )
-		  {
-		  char cicci[50];
-		  sprintf(cicci,"Wela: %d",thisroom.regionTintLevel[onRegion]);
-		  quit(cicci);
-		  }
-		  */
+
 		  // why aren't we getting results ? >:(
 		  tint_amount = (unsigned char)((tint_level >> 24) & 0x000ff);//(unsigned char)((tint_level >> 24) & 0x000ff);//light_level;    // light_level my ass
 		  // older versions of the editor had a bug - work around it
@@ -8608,6 +8601,10 @@ void draw_screen_background() {
 
   if (play.screen_tint >= 0)
     invalidate_screen();
+
+  // FAKE GAMMA
+  if (usetup.windowed && play.gamma_adjustment > 100) // What about fullscreen that doesn't support HW Gamma ? - Alan
+	  invalidate_screen();
 
   if (gfxDriver->RequiresFullRedrawEachFrame())
   {

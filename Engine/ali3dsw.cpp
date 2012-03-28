@@ -19,6 +19,8 @@
 extern int dxmedia_play_video (const char*, bool, int, int);
 #include <ddraw.h>
 
+int _gamma = 0;// FAKEGAMMA
+
 typedef struct DDRAW_SURFACE {
    LPDIRECTDRAWSURFACE2 id;
    int flags;
@@ -375,6 +377,7 @@ bool ALSoftwareGraphicsDriver::SupportsGammaControl()
   {
     return 1;
   }
+  else if (_windowed) return 1;// FAKEGAMMA
 
 #endif
 
@@ -392,7 +395,13 @@ void ALSoftwareGraphicsDriver::SetGamma(int newGamma)
     gammaRamp.blue[i] = newValue;
   }
 
-  dxGammaControl->SetGammaRamp(0, &gammaRamp);
+  if (dxGammaControl != NULL) // Hardware gamma
+  {
+    dxGammaControl->SetGammaRamp(0, &gammaRamp);
+	_gamma = 0; // Not necessary, but ya never know
+  }
+  else // Software gamma
+    _gamma = (newGamma-100)*255/100; // FAKEGAMMA
 }
 
 BITMAP* ALSoftwareGraphicsDriver::ConvertBitmapToSupportedColourDepth(BITMAP *allegroBitmap)
@@ -551,6 +560,18 @@ void ALSoftwareGraphicsDriver::RenderToBackBuffer()
     tint_image(virtualScreen, _spareTintingScreen, _tint_red, _tint_green, _tint_blue, 100, 255);
     blit(_spareTintingScreen, virtualScreen, 0, 0, 0, 0, _spareTintingScreen->w, _spareTintingScreen->h);*/
   }
+  // FAKEGAMMA BEGIN
+  
+  if (_gamma>0 && (_colorDepth > 8))
+  {
+	  set_add_blender(_gamma, _gamma, _gamma, _gamma);
+	  //draw_lit_sprite(virtualScreen, virtualScreen, 0, 0, _gamma/2);
+	  draw_trans_sprite(virtualScreen, virtualScreen, 0, 0);
+	  // All off this must happen with invalidate_screen() or the parts not redraw will fade to white - Alan
+  }
+  
+  // FAKEGAMMA END
+
 
   ClearDrawList();
 }

@@ -20,6 +20,8 @@
 #include <d3d9.h>
 #include <ali3d.h>
 
+extern int _gamma; // declared inside ali3dsw.cpp - I know this is ugly, but it's late and I wanna sleep - Alan
+
 extern int dxmedia_play_video_3d(const char*filename, IDirect3DDevice9 *device, bool useAVISound, int canskip, int stretch);
 extern void dxmedia_shutdown_3d();
 void dummy_vsync() { }
@@ -261,6 +263,7 @@ public:
   virtual BITMAP* GetMemoryBackBuffer() { return NULL; }
   virtual void SetMemoryBackBuffer(BITMAP *backBuffer) {  }
   virtual void SetScreenTint(int red, int green, int blue);
+  virtual void SetFakeGamma(int gamma); // FAKEGAMMA
 
   // Internal
   int _initDLLCallback();
@@ -302,6 +305,9 @@ private:
   BITMAP* _screenTintLayer;
   D3DBitmap* _screenTintLayerDDB;
   SpriteDrawListEntry _screenTintSprite;
+  BITMAP* _fakeGammaLayer;
+  D3DBitmap* _fakeGammaLayerDDB;
+  SpriteDrawListEntry _fakeGammaSprite;
 
   SpriteDrawListEntry drawList[MAX_DRAW_LIST_SIZE];
   int numToDraw;
@@ -320,6 +326,7 @@ private:
   bool IsTextureFormatOk( D3DFORMAT TextureFormat, D3DFORMAT AdapterFormat );
   bool IsModeSupported(int width, int height, int colDepth);
   void create_screen_tint_bitmap();
+  void create_fake_gamma_bitmap(); // FAKEGAMMA
   void _renderSprite(SpriteDrawListEntry *entry, bool globalLeftRightFlip, bool globalTopBottomFlip);
 };
 
@@ -362,9 +369,14 @@ D3DGraphicsDriver::D3DGraphicsDriver(D3DGFXFilter *filter)
   _filter = filter;
   _screenTintLayer = NULL;
   _screenTintLayerDDB = NULL;
+  _fakeGammaLayer = NULL;
+  _fakeGammaLayerDDB = NULL;
   _screenTintSprite.skip = true;
   _screenTintSprite.x = 0;
   _screenTintSprite.y = 0;
+  _fakeGammaSprite.skip = true;
+  _fakeGammaSprite.x = 0;
+  _fakeGammaSprite.y = 0;
   pixelShader = NULL;
   previousError[0] = 0;
   _legacyPixelShader = false;
@@ -612,7 +624,7 @@ bool D3DGraphicsDriver::SupportsGammaControl()
     return false;
 
   if (_newmode_windowed)
-    return false;
+    return true; // fuck yes!
 
   return true;
 }
@@ -628,8 +640,13 @@ void D3DGraphicsDriver::SetGamma(int newGamma)
     currentgammaramp.green[i] = newValue;
     currentgammaramp.blue[i] = newValue;
   }
-
-  direct3ddevice->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &currentgammaramp);
+  if (!_newmode_windowed)
+	direct3ddevice->SetGammaRamp(0, D3DSGR_NO_CALIBRATION, &currentgammaramp);
+  else
+  {
+     // FAKEGAMMA
+	SetFakeGamma( (newGamma-100)*255/100 );
+  }
 }
 
 /* wnd_set_video_mode:
@@ -979,6 +996,7 @@ bool D3DGraphicsDriver::Init(int virtualWidth, int virtualHeight, int realWidth,
   {
     this->initD3DDLL();
     this->create_screen_tint_bitmap();
+	this->create_fake_gamma_bitmap(); // FAKEGAMMA
   }
   catch (Ali3DException exception)
   {
@@ -1003,6 +1021,18 @@ void D3DGraphicsDriver::UnInit()
   {
     destroy_bitmap(_screenTintLayer);
     _screenTintLayer = NULL;
+  }
+  // FAKEGAMMA
+  if (_fakeGammaLayerDDB != NULL) 
+  {
+	  this->DestroyDDB(_fakeGammaLayerDDB);
+	  _fakeGammaLayerDDB = NULL;
+	  _fakeGammaSprite.bitmap = NULL;
+  }
+  if (_fakeGammaLayer != NULL)
+  {
+	  destroy_bitmap(_fakeGammaLayer);
+	  _fakeGammaLayer = NULL;
   }
 
   dxmedia_shutdown_3d();
@@ -1461,6 +1491,19 @@ void D3DGraphicsDriver::_render(GlobalFlipType flip, bool clearDrawListAfterward
   {
     this->_renderSprite(&_screenTintSprite, false, false);
   }
+  if (_newmode_windowed && !_fakeGammaSprite.skip)
+  {
+    direct3ddevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
+	direct3ddevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+	/* TODO: Darken ( gamma < 100 ), nobody cares - Alan
+	direct3ddevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_DESTCOLOR);
+	direct3ddevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
+	*/
+	this->_renderSprite(&_fakeGammaSprite, false, false);
+	direct3ddevice->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	direct3ddevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+  }
+  
 
   direct3ddevice->EndScene();
 
@@ -2055,4 +2098,27 @@ void D3DGraphicsDriver::SetScreenTint(int red, int green, int blue)
 
     _screenTintSprite.skip = ((red == 0) && (green == 0) && (blue == 0));
   }
+}
+// FAKEGAMMA
+void D3DGraphicsDriver::create_fake_gamma_bitmap() 
+{
+	_fakeGammaLayer = create_bitmap_ex(this->_newmode_depth, 16, 16);
+	_fakeGammaLayer = this->ConvertBitmapToSupportedColourDepth(_fakeGammaLayer);
+	_fakeGammaLayerDDB = (D3DBitmap*)this->CreateDDBFromBitmap(_fakeGammaLayer, false, false);
+	_fakeGammaSprite.bitmap = _fakeGammaLayerDDB;
+}
+
+void D3DGraphicsDriver::SetFakeGamma(int gamma)
+{ 
+	if ( gamma != _gamma)
+	{
+		_gamma = gamma;
+
+		clear_to_color(_fakeGammaLayer, makecol_depth(bitmap_color_depth(_fakeGammaLayer), gamma, gamma, gamma));
+		this->UpdateDDBFromBitmap(_fakeGammaLayerDDB, _fakeGammaLayer, false);
+		_fakeGammaLayerDDB->SetStretch(_newmode_width, _newmode_height);
+		_fakeGammaLayerDDB->SetTransparency(128);
+
+		_fakeGammaSprite.skip = gamma<0;
+	}
 }
