@@ -534,11 +534,13 @@ ScriptAudioChannel* play_audio_clip_on_channel(int channel, ScriptAudioClip *cli
     return NULL;
   }
   
-  //play.sound_panning = 127; // reset
   last_sound_played[channel] = -1;
   channels[channel] = soundfx;
-  channels[channel]->set_panning(play.sound_panning);
-  channels[channel]->set_volume(play.sound_volume);
+  if (!play.fast_forward) 
+  {
+	  channels[channel]->set_panning(play.sound_panning);
+	  channels[channel]->set_volume(play.sound_volume);
+  }
   return &scrAudioChannel[channel];
 }
 
