@@ -566,19 +566,20 @@ void Character_ChangeRoomAutoPosition(CharacterInfo *chaa, int room, int newPos)
   NewRoom(room);
 }
 
-void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y) {
+void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y, int direction) {
 
   if (chaa->index_id != game.playercharacter) {
     // NewRoomNPC
     if ((x != SCR_NO_VALUE) && (y != SCR_NO_VALUE)) {
       chaa->x = x;
       chaa->y = y;
+	  if (direction != SCR_NO_VALUE && direction>=0) chaa->loop = direction;
     }
     chaa->prevroom = chaa->room;
     chaa->room = room;
 
-    DEBUG_CONSOLE("%s moved to room %d, location %d,%d",
-                  chaa->scrname, room, chaa->x, chaa->y);
+    DEBUG_CONSOLE("%s moved to room %d, location %d,%d, loop %d",
+                  chaa->scrname, room, chaa->x, chaa->y, chaa->loop);
 
     return;
   }
@@ -589,9 +590,11 @@ void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y) {
     // walk-in animation if they want
     new_room_x = x;
     new_room_y = y;
+	if (direction != SCR_NO_VALUE) new_room_loop = direction;
   }
   
   NewRoom(room);
+
 }
 
 void FindReasonableLoopForCharacter(CharacterInfo *chap) {

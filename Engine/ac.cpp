@@ -660,6 +660,7 @@ int frames_per_second=40;
 int in_new_room=0, new_room_was = 0;  // 1 in new room, 2 first time in new room, 3 loading saved game
 int new_room_pos=0;
 int new_room_x = SCR_NO_VALUE, new_room_y = SCR_NO_VALUE;
+int new_room_loop = SCR_NO_VALUE;
 unsigned int load_new_game = 0;
 int load_new_game_restore = -1;
 int inside_script=0,in_graph_script=0;
@@ -4455,8 +4456,12 @@ void load_new_room(int newnum,CharacterInfo*forchar) {
   {
     forchar->x = new_room_x;
     forchar->y = new_room_y;
+
+	if (new_room_loop != SCR_NO_VALUE)
+		forchar->loop = new_room_loop;
   }
   new_room_x = SCR_NO_VALUE;
+  new_room_loop = SCR_NO_VALUE;
 
   if ((new_room_pos>0) & (forchar!=NULL)) {
     if (new_room_pos>=4000) {
@@ -17480,6 +17485,70 @@ int IsInventoryInteractionAvailable (int item, int mood) {
 int InventoryItem_CheckInteractionAvailable(ScriptInvItem *iitem, int mood) {
   return IsInventoryInteractionAvailable(iitem->id, mood);
 }
+// InteractionAvailable for everyone! - Alan
+int IsObjectInteractionAvailable (int object, int mood) {
+	if ((object < 0) || (object >= MAX_INIT_SPR))
+		quit("!IsObjectInteractionAvailable: invalid object number");
+
+	play.check_interaction_only = 1;
+
+	RunObjectInteraction(object, mood);
+
+	int ciwas = play.check_interaction_only;
+	play.check_interaction_only = 0;
+
+	if (ciwas == 2)
+		return 1;
+
+	return 0;
+}
+
+int Object_CheckInteractionAvailable(ScriptObject *oobj, int mood) {
+	return IsObjectInteractionAvailable(oobj->id, mood);
+}
+
+int IsCharacterInteractionAvailable (int character, int mood) {
+	if ( character < 0 )
+		quit("!IsCharacterInteractionAvailable: invalid character number");
+
+	play.check_interaction_only = 1;
+
+	RunCharacterInteraction(character, mood);
+
+	int ciwas = play.check_interaction_only;
+	play.check_interaction_only = 0;
+
+	if (ciwas == 2)
+		return 1;
+
+	return 0;
+}
+
+int Character_CheckInteractionAvailable(CharacterInfo *cchar, int mood) {
+	return IsCharacterInteractionAvailable(cchar->index_id, mood);
+}
+
+int IsHotspotInteractionAvailable (int hotspot, int mood) {
+	if ((hotspot < 0) || (hotspot >= MAX_HOTSPOTS))
+		quit("!IsCharacterInteractionAvailable: invalid character number");
+
+	play.check_interaction_only = 1;
+
+	RunHotspotInteraction(hotspot, mood);
+
+	int ciwas = play.check_interaction_only;
+	play.check_interaction_only = 0;
+
+	if (ciwas == 2)
+		return 1;
+
+	return 0;
+}
+
+int Hotspot_CheckInteractionAvailable(ScriptHotspot *hhot, int mood) {
+	return IsHotspotInteractionAvailable(hhot->id, mood);
+}
+/////
 
 int IsInteractionAvailable (int xx,int yy,int mood) {
   getloctype_throughgui = 1;
@@ -20229,7 +20298,7 @@ void NewRoom(int nrnum) {
 
 void NewRoomEx(int nrnum,int newx,int newy) {
 
-  Character_ChangeRoom(playerchar, nrnum, newx, newy);
+  Character_ChangeRoom(playerchar, nrnum, newx, newy, SCR_NO_VALUE);
 
 }
 
@@ -20239,7 +20308,7 @@ void NewRoomNPC(int charid, int nrnum, int newx, int newy) {
   if (charid == game.playercharacter)
     quit("!NewRoomNPC: use NewRoomEx with the player character");
 
-  Character_ChangeRoom(&game.chars[charid], nrnum, newx, newy);
+  Character_ChangeRoom(&game.chars[charid], nrnum, newx, newy, SCR_NO_VALUE);
 }
 
 void ResetRoom(int nrnum) {
@@ -24437,7 +24506,7 @@ void setup_script_exports() {
   scAdd_External_Symbol("Character::AddInventory^2",(void *)Character_AddInventory);
   scAdd_External_Symbol("Character::AddWaypoint^2",(void *)Character_AddWaypoint);
   scAdd_External_Symbol("Character::Animate^5",(void *)Character_Animate);
-  scAdd_External_Symbol("Character::ChangeRoom^3",(void *)Character_ChangeRoom);
+  scAdd_External_Symbol("Character::ChangeRoom^4",(void *)Character_ChangeRoom);
   scAdd_External_Symbol("Character::ChangeRoomAutoPosition^2",(void *)Character_ChangeRoomAutoPosition);
   scAdd_External_Symbol("Character::ChangeView^1",(void *)Character_ChangeView);
   scAdd_External_Symbol("Character::FaceCharacter^2",(void *)Character_FaceCharacter);
@@ -24450,6 +24519,7 @@ void setup_script_exports() {
   scAdd_External_Symbol("Character::HasInventory^1",(void *)Character_HasInventory);
   scAdd_External_Symbol("Character::IsCollidingWithChar^1",(void *)Character_IsCollidingWithChar);
   scAdd_External_Symbol("Character::IsCollidingWithObject^1",(void *)Character_IsCollidingWithObject);
+  scAdd_External_Symbol("Character::IsInteractionAvailable^1", (void *)Character_CheckInteractionAvailable);
   scAdd_External_Symbol("Character::LockView^1",(void *)Character_LockView);
   scAdd_External_Symbol("Character::LockViewAligned^3",(void *)Character_LockViewAligned);
   scAdd_External_Symbol("Character::LockViewFrame^3",(void *)Character_LockViewFrame);
@@ -24566,6 +24636,7 @@ void setup_script_exports() {
   scAdd_External_Symbol("Object::GetProperty^1", (void *)Object_GetProperty);
   scAdd_External_Symbol("Object::GetPropertyText^2", (void *)Object_GetPropertyText);
   scAdd_External_Symbol("Object::GetTextProperty^1",(void *)Object_GetTextProperty);
+  scAdd_External_Symbol("Object::IsInteractionAvailable^1", (void *)Object_CheckInteractionAvailable);
   scAdd_External_Symbol("Object::MergeIntoBackground^0", (void *)Object_MergeIntoBackground);
   scAdd_External_Symbol("Object::Move^5", (void *)Object_Move);
   scAdd_External_Symbol("Object::RemoveTint^0", (void *)Object_RemoveTint);
@@ -24874,6 +24945,7 @@ void setup_script_exports() {
   scAdd_External_Symbol("Hotspot::GetPropertyText^2", (void*)Hotspot_GetPropertyText);
   scAdd_External_Symbol("Hotspot::GetTextProperty^1",(void *)Hotspot_GetTextProperty);
   scAdd_External_Symbol("Hotspot::RunInteraction^1", (void*)Hotspot_RunInteraction);
+  scAdd_External_Symbol("Hotspot::IsInteractionAvailable^1", (void *)Hotspot_CheckInteractionAvailable);
   scAdd_External_Symbol("Hotspot::get_Enabled", (void*)Hotspot_GetEnabled);
   scAdd_External_Symbol("Hotspot::set_Enabled", (void*)Hotspot_SetEnabled);
   scAdd_External_Symbol("Hotspot::get_ID", (void*)Hotspot_GetID);
