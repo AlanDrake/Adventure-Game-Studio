@@ -742,9 +742,10 @@ int D3DGraphicsDriver::_initDLLCallback()
   d3dpp.hDeviceWindow = allegro_wnd;
   d3dpp.Windowed = _newmode_windowed;
   d3dpp.EnableAutoDepthStencil = FALSE;
-  d3dpp.Flags = 0;
+  d3dpp.Flags = D3DPRESENTFLAG_LOCKABLE_BACKBUFFER; // I need it for accessing the backbuffer with lockrect (was 0) - Alan 
   d3dpp.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
-  d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE; //D3DPRESENT_INTERVAL_DEFAULT;
+  //d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE; //D3DPRESENT_INTERVAL_DEFAULT;
+  d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE; // VSync, a checkbox on winsetup wouldn't be bad - Alan
   //d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
   /* If full screen, specify the refresh rate */
   if ((d3dpp.Windowed == FALSE) && (_newmode_refresh > 0))
@@ -1094,15 +1095,26 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
   {
     if (_pollingCallback)
       _pollingCallback();
-
+	
+	/* 
     // This call is v. slow (known DX9 issue)
     if (direct3ddevice->GetFrontBufferData(0, surface) != D3D_OK) // TODO: Find a way to get it from the backbuffer surface
     {
       throw Ali3DException("GetFrontBufferData failed");
     }
+	*/
+
+	// GetBackBuffer is faster and only takes what we need, I hope it doesn't break with bitdepths != 32 - Alan
+	if ( direct3ddevice->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,&surface)!=D3D_OK) 
+	{
+		throw Ali3DException("IDirect3DSurface9::GetBackBuffer failed");
+	}
+    
 
     if (_pollingCallback)
       _pollingCallback();
+
+	/* This piece should be now unnecessary - Alan
 
     WINDOWINFO windowInfo;
     RECT *areaToCapture = NULL;
@@ -1112,10 +1124,14 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
       // Stupidly, D3D creates a screenshot of the entire
       // desktop, so we have to manually extract the
       // bit with our game's window on it
-	  // Alex: We won't need this anymore if we manage to get the screenshot from the backbuffer
+
+	  // - That's exactly what GetFrontBufferData is meant to do, so we use GetBackBuffer 
+	  //   instead and ditch this part (hopefully nothing will break up) - Alan
+
       GetWindowInfo(win_get_window(), &windowInfo);
       areaToCapture = &windowInfo.rcClient;
     }
+	*/
 
     BITMAP *finalImage = NULL;
 
@@ -1137,7 +1153,7 @@ void D3DGraphicsDriver::GetCopyOfScreenIntoBitmap(BITMAP *destination)
     }
 
     D3DLOCKED_RECT lockedRect;
-    if (surface->LockRect(&lockedRect, areaToCapture, D3DLOCK_READONLY) != D3D_OK)
+    if (surface->LockRect(&lockedRect, NULL, D3DLOCK_READONLY ) != D3D_OK) // if (surface->LockRect(&lockedRect, areaToCapture, D3DLOCK_READONLY) != D3D_OK) 
     {
       throw Ali3DException("IDirect3DSurface9::LockRect failed");
     }
