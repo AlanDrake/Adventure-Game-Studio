@@ -201,6 +201,7 @@ namespace AGS.Editor
             // previewPanel
             // 
             this.previewPanel.AutoScroll = true;
+            this.previewPanel.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("previewPanel.BackgroundImage")));
             this.previewPanel.Location = new System.Drawing.Point(73, 124);
             this.previewPanel.MaximumSize = new System.Drawing.Size(679, 389);
             this.previewPanel.Name = "previewPanel";

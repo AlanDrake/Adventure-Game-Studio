@@ -661,6 +661,7 @@
     <Content Include="Resources\audio_player-pause.ico" />
     <Content Include="Resources\audio_player-play.ico" />
     <Content Include="Resources\audio_player-stop.ico" />
+    <EmbeddedResource Include="Resources\bg_checkerboard.gif" />
     <Content Include="Resources\editor.ico" />
     <Content Include="Resources\keyword.ico" />
     <Content Include="Resources\define.ico" />
