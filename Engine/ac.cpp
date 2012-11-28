@@ -10009,6 +10009,7 @@ ScriptDrawingSurface* DrawingSurface_CreateCopy(ScriptDrawingSurface *sds)
 }
 
 // Calin's true alpha blending
+//*
 void Manual_Draw(BITMAP *src, BITMAP *dest, int destx, int desty, int trans)
 {
 	trans = 100 - trans;
@@ -10152,8 +10153,9 @@ void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slo
   if (needToFreeBitmap)
     destroy_bitmap(sourcePic);
 }
-
+//*/
 // Calin's true alpha blending - end
+
 
 void DrawingSurface_DrawSurface(ScriptDrawingSurface* target, ScriptDrawingSurface* source, int translev) {
   if ((translev < 0) || (translev > 99))
@@ -10182,7 +10184,8 @@ void DrawingSurface_DrawSurface(ScriptDrawingSurface* target, ScriptDrawingSurfa
 }
 
 
-/* OLD VERSION
+// ORIGINAL DrawingSurface_DrawImage
+/*
 void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slot, int trans, int width, int height)
 {
   if ((slot < 0) || (slot >= MAX_SPRITES) || (spriteset[slot] == NULL))
@@ -10238,8 +10241,9 @@ void DrawingSurface_DrawImage(ScriptDrawingSurface* sds, int xx, int yy, int slo
   if (needToFreeBitmap)
     destroy_bitmap(sourcePic);
 }
-
 */
+// ORIGINAL DrawingSurface_DrawImage - END
+
 int Game_GetColorFromRGB(int red, int grn, int blu) {
   if ((red < 0) || (red > 255) || (grn < 0) || (grn > 255) ||
       (blu < 0) || (blu > 255))
@@ -24503,12 +24507,13 @@ void setup_script_exports() {
   // the ^5 after the function name is the number of params
   // this is to allow an extra parameter to be added in a later
   // version without screwing up the stack in previous versions
-  // (just export both the ^5 and the ^6 as seperate funcs)
+  // (just export both the ^5 and the ^6 as separate funcs)
   register_audio_script_functions();
   scAdd_External_Symbol("Character::AddInventory^2",(void *)Character_AddInventory);
   scAdd_External_Symbol("Character::AddWaypoint^2",(void *)Character_AddWaypoint);
   scAdd_External_Symbol("Character::Animate^5",(void *)Character_Animate);
-  scAdd_External_Symbol("Character::ChangeRoom^4",(void *)Character_ChangeRoom);
+  scAdd_External_Symbol("Character::ChangeRoom^3",(void (*)(CharacterInfo*,int,int,int))Character_ChangeRoom);
+  scAdd_External_Symbol("Character::ChangeRoom^4",(void (*)(CharacterInfo*,int,int,int,int))Character_ChangeRoom);
   scAdd_External_Symbol("Character::ChangeRoomAutoPosition^2",(void *)Character_ChangeRoomAutoPosition);
   scAdd_External_Symbol("Character::ChangeView^1",(void *)Character_ChangeView);
   scAdd_External_Symbol("Character::FaceCharacter^2",(void *)Character_FaceCharacter);

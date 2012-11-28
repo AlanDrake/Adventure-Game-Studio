@@ -566,6 +566,10 @@ void Character_ChangeRoomAutoPosition(CharacterInfo *chaa, int room, int newPos)
   NewRoom(room);
 }
 
+void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y) {
+  Character_ChangeRoom(chaa, room, x, y, SCR_NO_VALUE);
+}
+
 void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y, int direction) {
 
   if (chaa->index_id != game.playercharacter) {
