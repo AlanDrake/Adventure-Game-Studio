@@ -501,6 +501,7 @@ ScriptAudioChannel* play_audio_clip_on_channel(int channel, ScriptAudioClip *cli
   if (soundfx == NULL)
   {
     soundfx = load_sound_clip(clip, (repeat) ? true : false);
+    if (soundfx != NULL) soundfx->set_volume( (play.sound_volume*clip->defaultVolume)/255 ); 
   }
   if (soundfx == NULL)
   {
@@ -539,7 +540,7 @@ ScriptAudioChannel* play_audio_clip_on_channel(int channel, ScriptAudioClip *cli
   if (!play.fast_forward) 
   {
 	  channels[channel]->set_panning(play.sound_panning);
-	  channels[channel]->set_volume(play.sound_volume);
+	  //channels[channel]->set_volume(play.sound_volume);
   }
   return &scrAudioChannel[channel];
 }
