@@ -164,6 +164,8 @@ int hasUpDownLoops(CharacterInfo *char1) {
 }
 
 void start_character_turning (CharacterInfo *chinf, int useloop, int no_diagonal) {
+  // If a idle view is playing and the character is already in the right position to run a blocking interaction things will go awry - Alan
+  chinf->animating = 0;
   // work out how far round they have to turn 
   int fromidx = find_looporder_index (chinf->loop);
   int toidx = find_looporder_index (useloop);
@@ -631,6 +633,10 @@ void Character_ChangeView(CharacterInfo *chap, int vii) {
   // if animating, but not idle view, give warning message
   if ((chap->flags & CHF_FIXVIEW) && (chap->idleleft >= 0))
     debug_log("Warning: ChangeCharacterView was used while the view was fixed - call ReleaseCharView first");
+  else {
+    Character_UnlockView(chap);
+    chap->idleleft = chap->idletime; // Alan - if idleview was playing it would animate the view without our consent
+  }
 
   DEBUG_CONSOLE("%s: Change view to %d", chap->scrname, vii+1);
   chap->defview = vii;
