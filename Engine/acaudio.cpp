@@ -394,7 +394,7 @@ SOUNDCLIP *load_sound_clip(ScriptAudioClip *audioClip, bool repeat)
     soundClip->set_volume((audioClip->defaultVolume * 255) / 100);
     soundClip->soundType = audioClip->type;
     soundClip->sourceClip = audioClip;
-    soundClip->repeat = repeat;
+    //soundClip->repeat = repeat;
   }
   return soundClip;
 }
