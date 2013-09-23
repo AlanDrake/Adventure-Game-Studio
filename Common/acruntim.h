@@ -560,7 +560,7 @@ struct GameState {
   int   want_speech;
   int   cant_skip_speech;
   int   script_timers[MAX_TIMERS];
-  int   sound_volume,speech_volume,sound_panning; // EDITED
+  int   sound_volume,speech_volume;
   int   normal_font, speech_font;
   char  key_skip_wait;
   int   swap_portrait_lastchar;
@@ -615,6 +615,7 @@ struct GameState {
   int   ignore_user_input_after_text_timeout_ms;
   unsigned long ignore_user_input_until_time;
   int   default_audio_type_volumes[MAX_AUDIO_TYPES];
+  int   sound_panning; // moved
 };
 
 
@@ -884,7 +885,7 @@ extern int displayed_room;
 extern int final_scrn_wid,final_scrn_hit,final_col_dep;
 extern int turnlooporder[8];
 extern int in_enters_screen, done_es_error;
-extern int new_room_pos, new_room_x, new_room_y;
+extern int new_room_pos, new_room_x, new_room_y, new_room_loop;
 extern int scrnwid, scrnhit;
 extern int cur_mode,cur_cursor;
 extern block wallscreen;
@@ -1043,7 +1044,7 @@ extern void recache_queued_clips_after_loading_save_game();
 extern void Character_AddInventory(CharacterInfo *chaa, ScriptInvItem *, int addIndex);
 extern void Character_AddWaypoint(CharacterInfo *chaa, int x, int y);
 extern void Character_Animate(CharacterInfo *chaa, int loop, int delay, int repeat, int direction, int blocking);
-extern void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y);
+extern void Character_ChangeRoom(CharacterInfo *chaa, int room, int x, int y, int direction);
 extern void Character_ChangeRoomAutoPosition(CharacterInfo *chaa, int room, int newPos);
 extern void Character_ChangeView(CharacterInfo *chap, int vii);
 extern void Character_FaceCharacter(CharacterInfo *char1, CharacterInfo *otherChar, int blockingStyle);

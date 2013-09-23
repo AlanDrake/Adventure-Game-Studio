@@ -1976,6 +1976,15 @@ void load_main_block(roomstruct *rstruc, char *files, FILE *opty, room_file_head
     for (f = 0; f < 11; f++)
       rstruc->password[f] += passwencstring[f];
   }
+  // Mod - Conversion for editor's region tints - Alan
+  for (f = 0; f <= 15; f++) {
+	  if ( (rstruc->regionTintLevel[f] & TINT_IS_ENABLED) != 0 )
+	  {
+		rstruc->regionTintLevel[f] = (rstruc->regionTintLevel[f] & 0x00FFFFFF) | (rstruc->regionLightLevel[f]<<24);
+		rstruc->regionLightLevel[f] = 255;
+	  }
+  }
+  // Mod - End
 }
 
 void load_room(char *files, roomstruct *rstruc, bool gameIsHighRes) {

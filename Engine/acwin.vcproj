@@ -155,7 +155,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="."
+				AdditionalIncludeDirectories=".;..\Common;..\Common\libinclude"
 				PreprocessorDefinitions="VS2005;_DEBUG;WIN32;NDEBUG;_WINDOWS;ALLEGRO_STATICLINK;THIS_IS_THE_ENGINE;WINDOWS_VERSION;DISABLE_MPEG_AUDIO;_CRT_SECURE_NO_WARNINGS"
 				RuntimeLibrary="1"
 				StructMemberAlignment="0"
